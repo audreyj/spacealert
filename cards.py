@@ -40,7 +40,7 @@ def Generate_ThreatTracks(ship):
 def Generate_ThreatDeck(deck):
     cardlist = [Asteroid, StealthShip]
     for card in cardlist:
-        deck.add(card)
+        deck.add(card())
     deck.shuffle()
 
 
@@ -57,7 +57,8 @@ class ThreatCard(object):
         self.zone = ''
 
     def read_card(self):
-        reply = self.name+": Speed = "+str(self.speed)+", HP = "+str(self.hitpoints)+"\n"+self.card_text
+        reply = "| "+self.name+": Speed = "+str(self.speed)+\
+                ", HP = "+str(self.hitpoints)+"\n"+self.card_text
         return reply
 
     def x_action(self):

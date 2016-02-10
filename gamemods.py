@@ -47,8 +47,8 @@ class Section(object):
         self.current_energy = (maxenergy+(-maxenergy % 2))//2
         self.c_action = ''
         self.gun_spread = 1
-        self.fuel_capsules = 0
         self.zone = ''
+        self.guns_fired = 0
 
 
 class Zone(object):
@@ -61,35 +61,29 @@ class Zone(object):
         self.color = color
         self.threat_track = []
         self.threats = Hand()
-
         if color == 'white':
             self.upper = Section(5, 3, 3)
             self.upper.zone = self
             self.upper.c_action = 'main computer'
-
             self.lower = Section(1, 2, 5)
             self.lower.zone = self
             self.lower.c_action = 'spaceport'
-            self.lower.fuel_capsules = 3
             self.lower.gun_spread = 3
-
         elif color == 'red':
             self.upper = Section(4, 3, 2)
             self.upper.zone = self
             self.upper.c_action = 'interceptors (range1, dmg1-3, spread1-3)'
-
             self.lower = Section(2, 2, 3)
             self.lower.zone = self
             self.lower.c_action = 'redbots'
-
         elif color == 'blue':
             self.upper = Section(4, 3, 2)
             self.upper.zone = self
             self.upper.c_action = 'bluebots'
-
             self.lower = Section(2, 2, 3)
             self.lower.zone = self
             self.lower.c_action = 'rockets (range2, dmg3)'
+        self.level_layout = [self.lower, self.upper]
 
     def fullshow(self):
         returnlist = ["|--------- " + self.color.upper() + " Zone Status ---------"]
@@ -163,6 +157,7 @@ class Ship(object):
         self.red_bots = 1
         self.blue_bots = 1
         self.rockets = 3
+        self.fuel_capsules = 3
         self.main_computer = 0
         self.interceptors = 1
         self.zone_layout = [self.red_zone, self.white_zone, self.blue_zone]
@@ -186,7 +181,8 @@ class Ship(object):
 
 class Player(object):
     def __init__(self, pname=''):
-        self.location = ''
+        self.location = 1
+        self.level = 1
         self.name = pname
         self.score = 0
         self.handlimit = 5
@@ -249,16 +245,22 @@ class Player(object):
 
     def threatcard(self, opt=''):
         # threat_level = self.get_from_player(" '1' for Normal, '2' for Serious > ")
+        turn_appearance = self.get_from_player(" Turn appearance > ")
+        if turn_appearance not in self.slots_available:
+            self.tellplayer("Not a valid slot for appearance")
+            return False
         zone_placement = self.get_from_player(" 'R' for red zone, 'W' for white zone, 'B' for blue zone > ")
         if zone_placement == 'r':
-            self.gameboard.threat_deck.deal([self.gameboard.ship.red_zone.threats], 1)
+            the_zone = self.gameboard.ship.red_zone
         elif zone_placement == 'w':
-            self.gameboard.threat_deck.deal([self.gameboard.ship.white_zone.threats], 1)
+            the_zone = self.gameboard.ship.white_zone
         elif zone_placement == 'b':
-            self.gameboard.threat_deck.deal([self.gameboard.ship.blue_zone.threats], 1)
+            the_zone = self.gameboard.ship.blue_zone
         else:
             self.tellplayer("Bah, stop messing around. quit out")
             return False
+        self.gameboard.threat_appearance[turn_appearance] = the_zone
+        self.gameboard.threat_deck.deal([the_zone.threats], 1)
 
     def playcard(self, firstopt='', secondopt=''):
         try:
