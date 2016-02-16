@@ -40,7 +40,8 @@ class Deck(Hand):
 
 
 class Section(object):
-    def __init__(self, gun_strength, gun_range, maxenergy):
+    def __init__(self, gun_strength, gun_range, maxenergy, name):
+        self.name = name
         self.gunpower = gun_strength
         self.gunrange = gun_range
         self.max_energy = maxenergy
@@ -62,25 +63,25 @@ class Zone(object):
         self.threat_track = []
         self.threats = Hand()
         if color == 'white':
-            self.upper = Section(5, 3, 3)
+            self.upper = Section(5, 3, 3, 'upper')
             self.upper.zone = self
             self.upper.c_action = 'main computer'
-            self.lower = Section(1, 2, 5)
+            self.lower = Section(1, 2, 5, 'lower')
             self.lower.zone = self
             self.lower.c_action = 'spaceport'
             self.lower.gun_spread = 3
         elif color == 'red':
-            self.upper = Section(4, 3, 2)
+            self.upper = Section(4, 3, 2, 'upper')
             self.upper.zone = self
             self.upper.c_action = 'interceptors (range1, dmg1-3, spread1-3)'
-            self.lower = Section(2, 2, 3)
+            self.lower = Section(2, 2, 3, 'lower')
             self.lower.zone = self
             self.lower.c_action = 'redbots'
         elif color == 'blue':
-            self.upper = Section(4, 3, 2)
+            self.upper = Section(4, 3, 2, 'upper')
             self.upper.zone = self
             self.upper.c_action = 'bluebots'
-            self.lower = Section(2, 2, 3)
+            self.lower = Section(2, 2, 3, 'lower')
             self.lower.zone = self
             self.lower.c_action = 'rockets (range2, dmg3)'
         self.level_layout = [self.lower, self.upper]
@@ -88,9 +89,9 @@ class Zone(object):
     def fullshow(self):
         returnlist = ["|--------- " + self.color.upper() + " Zone Status ---------"]
         returnlist.append("| THREAT TRACK: " + str(self.threat_track))
-        returnlist.append("| Upper Level Gun: Power = "+str(self.upper.gunpower)+
+        returnlist.append("| Upper Level Gun: Power = "+str(self.upper.gunpower) +
                           ", Range = "+str(self.upper.gunrange)+", Spread = "+str(self.upper.gun_spread))
-        returnlist.append("| Upper Level Shield: Max = "+str(self.upper.max_energy)+
+        returnlist.append("| Upper Level Shield: Max = "+str(self.upper.max_energy) +
                           ", Current = "+str(self.upper.current_energy))
         if self.color == 'red':
             returnlist.append("| Interceptors are " + ("present" if self.ship.interceptors else "gone"))
@@ -100,14 +101,14 @@ class Zone(object):
             returnlist.append("| Blue Bots are " + ("present" if self.ship.blue_bots else "gone"))
         returnlist.append("|----- Lift Status: Lift is "+("Working" if self.lift_is_working else "BROKEN"))+"------"
         returnlist.append("|----- Lift Status: Lift is "+("IN USE" if self.lift_in_use else "available")+"--------")
-        returnlist.append("| Lower Level Gun: Power = "+str(self.lower.gunpower)+
+        returnlist.append("| Lower Level Gun: Power = "+str(self.lower.gunpower) +
                           ", Range = "+str(self.lower.gunrange)+", Spread = "+str(self.lower.gun_spread))
-        returnlist.append("| Lower Level Reactor: Max = "+str(self.lower.max_energy)+
+        returnlist.append("| Lower Level Reactor: Max = "+str(self.lower.max_energy) +
                           ", Current = "+str(self.lower.current_energy))
         if self.color == 'red':
             returnlist.append("| Red Bots are " + ("present" if self.ship.red_bots else "gone"))
         elif self.color == 'blue':
-            returnlist.append("| Rockets Remaining: " + str(self.ship.rockets))
+            returnlist.append("| Rockets Remaining: " + str(self.ship.rockets_remaining))
         returnlist.append("|---------------------------------------------")
         returnlist.append("| Damage Taken: " + str(self.damage))
         returnlist.append("")
@@ -116,7 +117,7 @@ class Zone(object):
     def refshow(self):
         returnlist = ["|---------- " + self.color.upper() + " Zone  --------------"]
         returnlist.append("| THREAT TRACK: " + str(self.threat_track))
-        returnlist.append("| Upper Level Gun: Power = "+str(self.upper.gunpower)+
+        returnlist.append("| Upper Level Gun: Power = "+str(self.upper.gunpower) +
                           ", Range = "+str(self.upper.gunrange)+", Spread = "+str(self.upper.gun_spread))
         returnlist.append("| Upper Level Shield: Max = "+str(self.upper.max_energy) +
                           ", Current = "+str(self.upper.current_energy))
@@ -130,19 +131,20 @@ class Zone(object):
         returnlist.append("|----------------------------------------------")
         return returnlist
 
-    def Do_Damage(self, amount):
+    def do_damage(self, amount):
         shields = self.upper.current_energy
         if shields >= amount:
             self.upper.current_energy -= amount
-            report = "Shields hold against %d damage.  Shields at %d energy." % (amount, self.upper.current_energy)
+            report = "%s shields hold against %d damage.  Shields at %d energy." % (
+                self.color.capitalize(), amount, self.upper.current_energy)
         else:
             result_damage = amount - self.upper.current_energy
-            self.upper.current_energy = 0
             self.damage += result_damage
             if self.damage > self.max_hp:
-                self.ship.explode()
-            report = "Shields at %d.  %d damage taken to %s zone. %s zone HP = %d." % \
-                     (self.upper.current_energy, result_damage, self.color, self.color, self.damage)
+                self.ship.explode(report)
+            report = "%s shields %d -> 0.  %d damage taken, HP -> %d." % (
+                self.color.capitalize(), self.upper.current_energy, result_damage, self.max_hp-self.damage)
+            self.upper.current_energy = 0
         return report
 
 
@@ -156,7 +158,7 @@ class Ship(object):
         self.blue_zone.ship = self
         self.red_bots = 1
         self.blue_bots = 1
-        self.rockets = 3
+        self.rockets_remaining = 3
         self.fuel_capsules = 3
         self.main_computer = 0
         self.interceptors = 1
@@ -174,19 +176,20 @@ class Ship(object):
             returnlist.extend(zone.fullshow())
         return returnlist
 
-    def explode(self):
+    def explode(self, report):
+        for thing in report:
+            print(thing)
         print("Boom. Death.  Game Over.")
         sys.exit(0)
 
 
 class Player(object):
-    def __init__(self, pname=''):
+    def __init__(self, p_name=''):
         self.location = 1
         self.level = 1
-        self.name = pname
+        self.name = p_name
         self.score = 0
-        self.handlimit = 5
-        self.gameboard = ''
+        self.board = ''
         self.battlebots = 0
         self.hand = Hand()
         self.card_slots = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
@@ -199,116 +202,93 @@ class Player(object):
     def tellplayer(self, what):
         print(what)
 
-    def get_from_player(self, prompt=''):
-        reponse = input(prompt).lower()
-        return reponse
+    def get_from_player(self, prompt, validinputs):
+        while 1:
+            response = input(prompt).lower()
+            if isinstance(validinputs[0], int):
+                try:
+                    response = int(response)
+                except:
+                    self.tellplayer("Enter a valid number")
+                    continue
+            if response in validinputs:
+                break
+            else:
+                self.tellplayer("Not a valid choice.  Choose from: " + str(validinputs))
+        return response
 
-    def instr(self, opt=''):
-        self.tellplayer("---------- Player Screen: ---------")
-        self.tellplayer("|   Slots Open: This shows the numbered slots that are open for you to play on")
-        self.tellplayer("|   Your Cards: This shows you a list of the playable cards in your hand")
-        self.tellplayer("---------- Player Options: --------")
-        self.tellplayer("|         SHIP: Shows the layout of the ship for reference")
-        self.tellplayer("|         WHAT: Shows all the cards you've played (plus previous phases)")
-        self.tellplayer("| TRANSFER X Y: Transfers card number X to player number Y")
-        self.tellplayer("|     PLAY X Y: Plays card X in time slot Y")
-        self.tellplayer("|     PICKUP X: Picks up card in time slot X")
-        self.tellplayer("|        PHASE: Move to the next phase")
-        self.tellplayer("|         DRAW: Draw new card to your hand")
-        self.tellplayer("|       THREAT: Draw new threat card")
-        self.tellplayer("|         SHOW: View threats")
+    def instr(self):
+        self.tellplayer(" ---------- Player Commands: (use only one word, no trailing space) --------")
+        self.tellplayer("|     SHIP: Show the layout of the ship for reference")
+        self.tellplayer("|     WHAT: Show all the cards you've played (plus previous phases)")
+        self.tellplayer("| TRANSFER: Transfer cards")
+        self.tellplayer("|     PLAY: Play a card")
+        self.tellplayer("|   PICKUP: Pick up a card")
+        self.tellplayer("|    PHASE: Move to the next phase")
+        self.tellplayer("|     DRAW: Draw new card to your hand")
+        self.tellplayer("|   THREAT: Draw new threat card")
+        self.tellplayer("|     SHOW: View threats")
 
-    def show_history(self, opt=''):
+    def show_history(self):
         for i, turn in enumerate(self.card_slots):
             self.tellplayer(str(i+1)+": "+str(turn))
 
-    def show_ship(self, opt=''):
-        for thing in self.gameboard.ship.show_ship_reference():
+    def show_ship(self):
+        for thing in self.board.ship.show_ship_reference():
             self.tellplayer(thing)
 
-    def show_threats(self, opt=''):
-        for zone in self.gameboard.ship.zone_layout:
+    def show_threats(self):
+        for zone in self.board.ship.zone_layout:
             self.tellplayer("|----- "+zone.color.upper()+" ZONE THREATS -------")
             for card in zone.threats.cards:
                 self.tellplayer(card.read_card())
 
-    def phaseup(self, opt=''):
-        self.gameboard.phase += 1
-        self.gameboard.deal_new_phase()
-        if self.gameboard.phase == 2:
+    def phaseup(self):
+        self.board.phase += 1
+        self.board.deal_new_phase()
+        if self.board.phase == 2:
             self.slots_available = [4, 5, 6, 7]
-        elif self.gameboard.phase == 3:
+        elif self.board.phase == 3:
             self.slots_available = [8, 9, 10, 11, 12]
 
-    def drawcard(self, clickcost=1):
-        self.gameboard.deck.deal([self.hand], 1)
+    def drawcard(self):
+        self.board.deck.deal([self.hand], 1)
 
-    def threatcard(self, opt=''):
-        # threat_level = self.get_from_player(" '1' for Normal, '2' for Serious > ")
-        turn_appearance = self.get_from_player(" Turn appearance > ")
-        if turn_appearance not in self.slots_available:
-            self.tellplayer("Not a valid slot for appearance")
-            return False
-        zone_placement = self.get_from_player(" 'R' for red zone, 'W' for white zone, 'B' for blue zone > ")
-        if zone_placement == 'r':
-            the_zone = self.gameboard.ship.red_zone
-        elif zone_placement == 'w':
-            the_zone = self.gameboard.ship.white_zone
-        elif zone_placement == 'b':
-            the_zone = self.gameboard.ship.blue_zone
-        else:
-            self.tellplayer("Bah, stop messing around. quit out")
-            return False
-        self.gameboard.threat_appearance[turn_appearance] = the_zone
-        self.gameboard.threat_deck.deal([the_zone.threats], 1)
+    def threatcard(self):
+        # threat_level = self.get_from_player(" '1' for Normal, '2' for Serious > ", [1, 2])
+        turn_appearance = self.get_from_player(" Turn appearance > ", self.slots_available)
+        zone_placement = self.get_from_player(" '1': red zone, '2': white zone, '3': blue zone > ", [1, 2, 3])
+        the_zone = self.board.ship.zone_layout[zone_placement-1]
+        self.board.threat_appearance[turn_appearance] = the_zone
+        self.board.threat_deck.deal([the_zone.threats], 1)
+        the_zone.threats.cards[-1].turn_appearance = turn_appearance
+        the_zone.threats.cards[-1].zone = the_zone
 
-    def playcard(self, firstopt='', secondopt=''):
-        try:
-            cardnum = int(firstopt) - 1
-            slotnum = int(secondopt) - 1
-        except:
-            self.tellplayer("Use numbers to choose cards and slots")
-            return False
-        if cardnum in range(len(self.hand.cards)):
-            chosencard = self.hand.cards[cardnum]
-        else:
-            self.tellplayer("Pick a card from your hand")
-            return False
-        if slotnum+1 in self.slots_available:
-            if self.card_slots[slotnum] != 0:
-                self.pickup(slotnum+1)
-            self.card_slots[slotnum] = chosencard
-            del self.hand.cards[cardnum]
-        else:
-            self.tellplayer("Pick an available slot to play in")
-            return False
-        newinput = self.get_from_player(" (M) for move side or (A) for action side: ")
-        if newinput == 'm':
-            self.card_slots[slotnum].state = 'm'
-        elif newinput == 'a':
-            self.card_slots[slotnum].state = 'a'
-        else:
-            self.tellplayer("Bah, stop messing around. quit out.")
-            return False
+    def playcard(self):
+        cardnum = self.get_from_player(" Card to Play: ", range(1, len(self.hand.cards)+1)) - 1
+        slotnum = self.get_from_player(" Slot to Play in: ", self.slots_available) - 1
+        chosencard = self.hand.cards[cardnum]
+        if self.card_slots[slotnum] != 0:
+            self.pickup(slotnum+1)
+        self.card_slots[slotnum] = chosencard
+        del self.hand.cards[cardnum]
+        self.card_slots[slotnum].state = self.get_from_player(
+            " (M) for move side or (A) for action side: ", ['m', 'a'])
 
-    def pickup(self, opt=''):
-        try:
-            slotnum = int(opt) - 1
-        except:
-            self.tellplayer("Use numbers to choose slot")
-            return False
-        if slotnum+1 in self.slots_available:
-            thecard = self.card_slots[slotnum]
-            if thecard != 0:
-                self.hand.add(thecard)
-                self.card_slots[slotnum] = 0
-                thecard.state = 0
-            self.tellplayer("Picked up %s from slot %d" % (thecard, slotnum))
+    def pickup(self, opt=0):
+        if opt:
+            slotnum = opt-1
         else:
-            self.tellplayer("You can't take anything from that slot")
-            return False
+            slotnum = self.get_from_player(" Which slot to pickup card > ", self.slots_available) - 1
+        thecard = self.card_slots[slotnum]
+        if thecard != 0:
+            self.hand.add(thecard)
+            self.card_slots[slotnum] = 0
+            thecard.state = 0
+        self.tellplayer("Picked up %s from slot %d" % (thecard, slotnum+1))
 
     def delayed(self, timeslot):
+        # This will delay this player one turn from given timeslot
         self.card_slots.insert(timeslot-1, 0)
         try:
             nextzero = self.card_slots[timeslot:].index(0)
@@ -317,21 +297,14 @@ class Player(object):
             del self.card_slots[-1]
 
     def playturn(self):
-        while self.gameboard.phase < 4:
-            self.tellplayer("------ PHASE: "+str(self.gameboard.phase)+", PLAYER "+self.name.upper()+" -----")
-            self.tellplayer("------ "+str(self.slots_available)+" ---------")
+        while self.board.phase < 4:
+            self.tellplayer("------ PHASE: "+str(self.board.phase) +
+                            ", PLAYER "+self.name.upper()+", Slots Avaiable: " +
+                            str(self.slots_available)+" -----")
             self.tellplayer(self.hand)
 
-            userinput = self.get_from_player(" Take Action > ")
-            wordlist = userinput.split()
-            if wordlist[0] in self.actions:
-                do = self.actions[wordlist[0]]
-                # try:
-                do(*wordlist[1:])
-            # except:
-            #	self.tellplayer("Not understanding your nouns")
-            else:
-                self.tellplayer("action not in list: ")
-                self.tellplayer(self.actions.keys())
+            userinput = self.get_from_player(" Take Action > ", list(self.actions.keys()))
+            self.actions[userinput]()
+
 
 
