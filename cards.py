@@ -18,7 +18,7 @@ class Card(object):
         return reply
 
 
-def Randomly_Populate(deck, numcards):
+def randomly_populate(deck, numcards):
     movetypes = ['RED', 'BLUE', 'LIFT']
     actiontypes = ['A', 'B', 'C', 'bots']
     for i in range(numcards):
@@ -30,7 +30,7 @@ def Randomly_Populate(deck, numcards):
     deck.shuffle()
 
 
-def Definitely_Populate(deck):
+def definitely_populate(deck):
     move_red = Card()
     move_red.move = 'RED'
     move_red.state = 'm'
@@ -50,18 +50,18 @@ def Definitely_Populate(deck):
     action_c.action = 'C'
     action_c.state = 'a'
 
-    Player_Ones_Cards = [move_red, action_a, action_b, move_lift, action_b, action_c,
+    player_ones_cards = [move_red, action_a, action_b, move_lift, action_b, action_c,
                          action_a, move_lift, action_a, action_a, action_a, action_a]
-    Player_Twos_Cards = [action_c, action_b, move_lift, action_b, action_b, action_a,
+    player_twos_cards = [action_c, action_b, move_lift, action_b, action_b, action_a,
                          action_b, action_c, move_lift, action_b, action_a, action_a]
-    Player_Threes_Cards = [move_blue, action_b, move_lift, action_c, action_b, action_c,
+    player_threes_cards = [move_blue, action_b, move_lift, action_c, action_b, action_c,
                            action_a, move_lift, action_a, action_a, action_a, action_a]
 
-    for card in Player_Ones_Cards+Player_Twos_Cards+Player_Threes_Cards:
+    for card in player_ones_cards + player_twos_cards + player_threes_cards:
         deck.add(card)
 
 
-def Generate_ThreatTracks(ship):
+def generate_threat_tracks(ship):
     tracks = [['', '', '', '', '2X', '', '', '', '1Y', '', '', 'Z'],
               ['', '', '', '2', 'X', '', '', '1', 'Y', '', '', '', '', '', 'Z'],
               ['', '', '2', 'X', '', 'Y', '', '', '1', 'Y', '', '', '', 'Z']]
@@ -69,7 +69,7 @@ def Generate_ThreatTracks(ship):
         zone.threat_track = random.choice(tracks)
 
 
-def Generate_ThreatDeck(deck):
+def generate_threat_deck(deck):
     cardlist = [Asteroid, StealthShip, StealthShip]
     for card in cardlist:
         deck.add(card())
@@ -106,6 +106,7 @@ class ThreatCard(object):
     def remove(self):
         self.distance = 0
         self.zone = ''
+
 
 class Asteroid(ThreatCard):
     def __init__(self):

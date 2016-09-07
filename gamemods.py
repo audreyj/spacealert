@@ -1,5 +1,3 @@
-import sys
-
 
 class Hand(object):
     def __init__(self):
@@ -53,12 +51,12 @@ class Section(object):
 
 
 class Zone(object):
-    def __init__(self, color):
+    def __init__(self, color, ship):
         self.max_hp = 6
         self.damage = 0
         self.lift_is_working = 1
         self.lift_in_use = 0
-        self.ship = ''
+        self.ship = ship
         self.color = color
         self.threat_track = []
         self.threats = Hand()
@@ -140,22 +138,19 @@ class Zone(object):
         else:
             result_damage = amount - self.upper.current_energy
             self.damage += result_damage
-            if self.damage > self.max_hp:
-                self.ship.explode(report)
             report = "%s shields %d -> 0.  %d damage taken, HP -> %d." % (
                 self.color.capitalize(), self.upper.current_energy, result_damage, self.max_hp-self.damage)
+            if self.damage >= self.max_hp:
+                report += ' ------ GAMEOVER ------ '
             self.upper.current_energy = 0
         return report
 
 
 class Ship(object):
     def __init__(self):
-        self.red_zone = Zone('red')
-        self.red_zone.ship = self
-        self.white_zone = Zone('white')
-        self.white_zone.ship = self
-        self.blue_zone = Zone('blue')
-        self.blue_zone.ship = self
+        self.red_zone = Zone('red', self)
+        self.white_zone = Zone('white', self)
+        self.blue_zone = Zone('blue', self)
         self.red_bots = 1
         self.blue_bots = 1
         self.rockets_remaining = 3
@@ -176,20 +171,14 @@ class Ship(object):
             returnlist.extend(zone.fullshow())
         return returnlist
 
-    def explode(self, report):
-        for thing in report:
-            print(thing)
-        print("Boom. Death.  Game Over.")
-        sys.exit(0)
-
 
 class Player(object):
-    def __init__(self, p_name=''):
+    def __init__(self, p_name, board):
         self.location = 1
         self.level = 1
         self.name = p_name
         self.score = 0
-        self.board = ''
+        self.board = board
         self.battlebots = 0
         self.hand = Hand()
         self.card_slots = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
@@ -212,10 +201,9 @@ class Player(object):
                     self.tellplayer("Enter a valid number")
                     continue
             if response in validinputs:
-                break
+                return response
             else:
                 self.tellplayer("Not a valid choice.  Choose from: " + str(validinputs))
-        return response
 
     def instr(self):
         self.tellplayer(" ---------- Player Commands: (use only one word, no trailing space) --------")
@@ -305,6 +293,3 @@ class Player(object):
 
             userinput = self.get_from_player(" Take Action > ", list(self.actions.keys()))
             self.actions[userinput]()
-
-
-

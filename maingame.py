@@ -7,16 +7,11 @@ import cards
 class Game(object):
     def __init__(self, num):
         self.num_players = num
-        self.p_one = gamemods.Player('One')
-        self.p_one.board = self
-        self.p_two = gamemods.Player('Two')
-        self.p_two.board = self
-        self.p_three = gamemods.Player('Three')
-        self.p_three.board = self
-        self.p_four = gamemods.Player('Four')
-        self.p_four.board = self
-        self.p_five = gamemods.Player('Five')
-        self.p_five.board = self
+        self.p_one = gamemods.Player('One', self)
+        self.p_two = gamemods.Player('Two', self)
+        self.p_three = gamemods.Player('Three', self)
+        self.p_four = gamemods.Player('Four', self)
+        self.p_five = gamemods.Player('Five', self)
         self.ship = gamemods.Ship()
         self.deck = gamemods.Deck()
         self.threat_deck = gamemods.Deck()
@@ -25,6 +20,7 @@ class Game(object):
         self.playerlist = self.player_order[:self.num_players]
         self.threat_appearance = {}
         self.rockets_fired = []
+        self.level_names = ['lower', 'upper']
 
     def test_game(self):
         for player in self.playerlist:
@@ -62,7 +58,7 @@ class Game(object):
             subreport.append(" -- Player %s moved to %s level, %s zone" % (
                 player.name, current_zone.level_layout[player.level].name, current_zone.color))
         elif direction in ['00', '01', '02', '10', '11', '12']:
-            new_level_name = current_level[int(direction[0])]
+            new_level_name = self.level_names[int(direction[0])]
             new_zone = self.ship.zone_layout[int(direction[1])]
             subreport.append(" -- Player teleports to %s %s section" % (new_level_name, new_zone.color))
             player.location = int(direction[1])
@@ -146,6 +142,8 @@ class Game(object):
         player = self.p_one
         for r in report:
             player.tellplayer(r)
+            if 'GAMEOVER' in r:
+                sys.exit(0)
         player.tellplayer("--------------------")
         return []
 
@@ -166,10 +164,7 @@ class Game(object):
         if turn in self.threat_appearance.keys():
             this_zone = self.threat_appearance[turn]
             report.append("Threat appears!  Zone: "+this_zone.color)
-            for c in this_zone.threats.cards:
-                if c.distance == 0:
-                    this_card = c
-                    break
+            this_card = [c for c in this_zone.threats.cards if c.distance == 0][0]
             report.append(this_card.read_card())
             this_card.distance = len(this_zone.threat_track)
             this_card.track_section = 3
@@ -289,18 +284,19 @@ class Game(object):
 
     def playgame(self):
         os.system('cls')
-        # cards.Randomly_Populate(self.deck, 100)  # Temporarily removed for test deck
-        # self.deck.deal([x.hand for x in self.playerlist], 6)
-        cards.Definitely_Populate(self.deck)  # Temporary test deck
-        cards.Generate_ThreatTracks(self.ship)
-        cards.Generate_ThreatDeck(self.threat_deck)
-        # for player in self.playerlist:  # Temporarily removed for test cards
-        #     player.playturn()
-        self.test_game()  # Temporary test to load player and threat cards
+        cards.randomly_populate(self.deck, 100)  # Temporarily removed for test deck
+        self.deck.deal([x.hand for x in self.playerlist], 6)
+        cards.definitely_populate(self.deck)  # Temporary test deck
+        cards.generate_threat_tracks(self.ship)
+        cards.generate_threat_deck(self.threat_deck)
+        for player in self.playerlist:  # Temporarily removed for test cards
+            player.playturn()
+        # self.test_game()  # Temporary test to load player and threat cards
         turn = 0
         while turn < 12:
             report = []
             turn += 1
+            # Temporarily removing main computer check for testing purposes
             # if turn in [3, 6, 10]:
             #     report.extend(self.computer_check(turn))
             # report = self.reportout(report)
